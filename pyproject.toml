@@ -1,0 +1,46 @@
+[project]
+name = "lec-trade-agent"
+version = "0.1.0"
+description = "LEC Trade Intelligence Agent — production-grade agentic system for London Export Corporation"
+requires-python = ">=3.11"
+dependencies = [
+    "langgraph",
+    "langchain-openai",
+    "langchain-anthropic",
+    "chromadb",
+    "rank-bm25",
+    "sentence-transformers",
+    "fastapi",
+    "uvicorn",
+    "streamlit",
+    "pypdf",
+    "beautifulsoup4",
+    "lxml",
+    "requests",
+    "forex-python",
+    "rapidfuzz",
+    "sqlalchemy",
+    "python-dotenv",
+    "httpx",
+    "tavily",
+    "pytest",
+    "pytest-asyncio",
+    "graphviz",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.streamlit]
+key = "generated"

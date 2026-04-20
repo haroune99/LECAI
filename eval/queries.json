@@ -1,0 +1,97 @@
+[
+  {
+    "id": 1,
+    "query": "What is the current UK import duty for Tsingtao beer, and what would be the total landed cost of 10,000 cases shipped from Qingdao to Liverpool?",
+    "expected": {
+      "key_facts": [
+        "commodity code 2203",
+        "duty rate around 12-20%",
+        "VAT 20%",
+        "landed cost calculation including CIF freight insurance duty VAT"
+      ],
+      "tools_expected": ["trade_regulations_lookup", "trade_calculator"],
+      "min_score_criteria": "Must include actual duty rate and a numerical landed cost figure"
+    }
+  },
+  {
+    "id": 2,
+    "query": "Has there been any change to UK sanctions on Chinese tech companies in the last 6 months that could affect our robotics division partnerships?",
+    "expected": {
+      "key_facts": ["OFSI sanctions context", "current sanctions status", "robotics/tech sector relevance"],
+      "tools_expected": ["market_intelligence_search", "trade_regulations_lookup"],
+      "min_score_criteria": "Must consult both current news and the sanctions KB, not just one"
+    }
+  },
+  {
+    "id": 3,
+    "query": "What do our documents say about Tsingtao's UK distribution strategy, and is there any recent news about their expansion plans?",
+    "expected": {
+      "key_facts": ["LEC Beverages distribution relationship", "UK on-trade/off-trade channels", "recent Tsingtao news"],
+      "tools_expected": ["document_intelligence", "market_intelligence_search"],
+      "min_score_criteria": "Must cite internal documents AND recent external news — not just one"
+    }
+  },
+  {
+    "id": 4,
+    "query": "We're considering importing a new Chinese herbal drinks brand. What are the FSA compliance requirements and what commodity code would it fall under?",
+    "expected": {
+      "key_facts": ["novel foods regulation", "food safety requirement", "commodity code for herbal beverages", "FSA/HMRC overlap"],
+      "tools_expected": ["trade_regulations_lookup", "document_intelligence"],
+      "min_score_criteria": "Must give a specific commodity code and specific FSA requirements, not vague advice"
+    }
+  },
+  {
+    "id": 5,
+    "query": "Convert 500,000 CNY to GBP and tell me what percentage that represents of a typical SME investment threshold for LEC Global Capital.",
+    "expected": {
+      "key_facts": ["GBP/CNY conversion", "LEC Global Capital investment profile"],
+      "tools_expected": ["trade_calculator", "document_intelligence"],
+      "min_score_criteria": "Must provide a specific GBP figure and contextualise it against LEC's investment profile"
+    }
+  },
+  {
+    "id": 6,
+    "query": "Profile Meituan Dianping as a potential LEC Global Capital investment — who are they, what sector, and are there any UK sanctions concerns?",
+    "expected": {
+      "key_facts": ["Meituan is Chinese tech/delivery company", "HKEX listed", "sanctions check result"],
+      "tools_expected": ["partnership_profiler", "trade_regulations_lookup"],
+      "min_score_criteria": "Must perform explicit sanctions check, not just describe the company"
+    }
+  },
+  {
+    "id": 7,
+    "query": "What are the UKCA marking requirements for importing robotic arm components from China?",
+    "expected": {
+      "key_facts": ["UKCA replaces CE mark post-Brexit", "machinery directive equivalent", "specific robotics component requirements"],
+      "tools_expected": ["trade_regulations_lookup"],
+      "min_score_criteria": "Single tool query — must give specific UKCA requirements, not generic advice"
+    }
+  },
+  {
+    "id": 8,
+    "query": "Summarise what our documents say about the history of LEC's trade relationship with China, specifically the 1953 founding deal.",
+    "expected": {
+      "key_facts": ["Jack Perry Senior 1953", "China Import Export Corporation", "first British company to trade with new China", "wool tops"],
+      "tools_expected": ["document_intelligence"],
+      "min_score_criteria": "Single tool query — must retrieve the specific 1953 story, not generic LEC history"
+    }
+  },
+  {
+    "id": 9,
+    "query": "We have a potential Chinese partner in renewable energy. They're called Longi Green Energy. Check if they're sanctioned, profile them, and estimate what a £2M investment would look like in CNY over 3 years at 8% annual return.",
+    "expected": {
+      "key_facts": ["Longi is leading solar manufacturer", "sanctions clean", "£2M × 1.08^3 in CNY at current rate"],
+      "tools_expected": ["partnership_profiler", "trade_regulations_lookup", "trade_calculator"],
+      "min_score_criteria": "All three tools must be called. ROI projection must show actual numbers."
+    }
+  },
+  {
+    "id": 10,
+    "query": "What is the most cost-effective route to get a new Chinese beverage brand into UK retail — direct import versus using a UK distributor — based on current duties, our distribution capabilities, and market conditions?",
+    "expected": {
+      "key_facts": ["duty rates", "LEC Beverages distribution capability", "distributor margin vs direct cost", "market conditions"],
+      "tools_expected": ["trade_regulations_lookup", "document_intelligence", "market_intelligence_search", "trade_calculator", "partnership_profiler"],
+      "min_score_criteria": "All 5 tools should be consulted. Answer must compare both routes with actual numbers."
+    }
+  }
+]
