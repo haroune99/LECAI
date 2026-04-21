@@ -63,22 +63,27 @@ def ingest_tariff_csv(csv_path: str) -> int:
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            commodity_code = row.get("Code", "").strip()
+            commodity_code = row.get("commodity_code", "").strip()
             if not commodity_code:
                 continue
+            duty_str = row.get("duty_rate", "0").replace("%", "").strip()
+            try:
+                duty_rate = float(duty_str)
+            except (ValueError, TypeError):
+                duty_rate = 0.0
             c.execute("""
                 INSERT OR IGNORE INTO tariff_codes
                 (commodity_code, description, category, uk_duty_rate, vat_rate, origin_rules, restrictions, last_updated)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 commodity_code,
-                row.get("Description", ""),
-                row.get("Category", ""),
-                float(row.get("Duty Rate", 0) or 0),
-                float(row.get("VAT Rate", 20) or 20),
-                row.get("Origin Rules", ""),
-                row.get("Restrictions", ""),
-                row.get("Last Updated", ""),
+                row.get("description", ""),
+                row.get("measure_type", ""),
+                duty_rate,
+                20.0,
+                row.get("origin_rules", ""),
+                "",
+                row.get("effective_start_date", ""),
             ))
             count += 1
     conn.commit()
@@ -93,7 +98,7 @@ def ingest_sanctions_csv(csv_path: str) -> int:
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            entity_name = row.get("Name", "").strip()
+            entity_name = row.get("Name 6", "").strip()
             if not entity_name:
                 continue
             c.execute("""
@@ -102,11 +107,11 @@ def ingest_sanctions_csv(csv_path: str) -> int:
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (
                 entity_name,
-                row.get("Type", ""),
-                row.get("Jurisdiction", ""),
-                row.get("Listing Date", ""),
-                row.get("Reason", ""),
-                row.get("Source", ""),
+                row.get("Name type", ""),
+                row.get("Address Country", ""),
+                row.get("Date Designated", ""),
+                row.get("UK Statement of Reasons", ""),
+                "OFSI",
             ))
             count += 1
     conn.commit()
@@ -150,11 +155,13 @@ def ingest_regulatory_pdf(pdf_path: str) -> int:
 
 
 def trade_regulations_lookup(
-    query_type: Literal["tariff", "sanctions_check", "regulatory_requirements"],
+    query_type: Literal["tariff", "sanctions_check", "regulatory_requirements", "sanctions"],
     commodity_code: Optional[str] = None,
     entity_name: Optional[str] = None,
     category: Optional[str] = None,
 ) -> ToolResult:
+    if query_type == "sanctions":
+        query_type = "sanctions_check"
     start = time.time()
     init_kb()
     conn = sqlite3.connect(DB_PATH)
@@ -174,6 +181,9 @@ def trade_regulations_lookup(
 
             if commodity_code:
                 c.execute("SELECT * FROM tariff_codes WHERE commodity_code = ?", (commodity_code,))
+                rows = c.fetchall()
+                if not rows and len(commodity_code) >= 4:
+                    c.execute("SELECT * FROM tariff_codes WHERE commodity_code LIKE ?", (commodity_code + "%",))
             else:
                 c.execute("SELECT * FROM tariff_codes WHERE category = ? LIMIT 20", (category,))
 

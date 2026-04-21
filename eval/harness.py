@@ -7,7 +7,7 @@ from src.agent.state import default_state
 from eval.judge import llm_judge_score
 
 
-async def run_single_query(
+def run_single_query(
     query_id: int,
     query: str,
     expected: dict,
@@ -24,7 +24,7 @@ async def run_single_query(
     config = {"configurable": {"thread_id": f"eval_{query_id}_{prompt_version}"}}
 
     try:
-        result = await graph.ainvoke(state, config=config)
+        result = graph.invoke(state, config=config)
     except Exception as e:
         return {
             "query_id": query_id,
@@ -36,8 +36,8 @@ async def run_single_query(
             "tools_called": [],
             "tools_count": 0,
             "retries": 0,
-            "iterations": result.get("iteration", 0) if "result" in dir() else 0,
-            "latency_ms": 0,
+            "iterations": 0,
+            "latency_ms": (time.time() - start) * 1000,
             "tokens_input": 0,
             "tokens_output": 0,
             "cost_usd": 0.0,
@@ -81,7 +81,8 @@ async def run_full_eval():
         print(f"\n=== Running eval with prompt {prompt_version} ===")
         for q in queries:
             print(f"  Query {q['id']}: {q['query'][:60]}...", end=" ", flush=True)
-            result = await run_single_query(
+            result = await asyncio.to_thread(
+                run_single_query,
                 q["id"], q["query"], q["expected"],
                 prompt_version, graph
             )

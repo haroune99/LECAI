@@ -18,7 +18,21 @@ class VectorStore:
         )
 
     def add_chunks(self, chunks: list[dict], embeddings: list[list[float]]):
-        ids = [c["metadata"].get("chunk_id", c["text"][:32]) for c in chunks]
+        ids = []
+        for c in chunks:
+            source = c["metadata"].get("source", "unk")
+            chunk_idx = c["metadata"].get("chunk_index")
+            row_idx = c["metadata"].get("row_index")
+            page_idx = c["metadata"].get("page_index")
+            if chunk_idx is not None:
+                unique_part = str(chunk_idx)
+            elif row_idx is not None:
+                unique_part = f"r{row_idx}"
+            elif page_idx is not None:
+                unique_part = f"p{page_idx}"
+            else:
+                unique_part = c["text"][:32]
+            ids.append(f"{source}_{unique_part}")
         texts = [c["text"] for c in chunks]
         metadatas = [c["metadata"] for c in chunks]
 

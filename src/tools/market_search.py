@@ -8,7 +8,7 @@ from src.tools.base import ToolResult
 
 
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
-TAVILY_BASE_URL = "https://api.tavily.io/v1"
+TAVILY_BASE_URL = "https://api.tavily.com"
 
 
 def market_intelligence_search(

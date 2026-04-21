@@ -41,17 +41,26 @@ def parse_pdf(file_path: str, extract_english_only: bool = True) -> tuple[str, d
             text = split_pdf_by_language(text)
         text_parts.append(text)
         metadata[f"page_{i}_text_len"] = len(text)
+        metadata["page_index"] = i
 
     return "\n".join(text_parts), metadata
 
 
 def parse_csv(file_path: str) -> tuple[str, dict]:
+    import csv
     with open(file_path, "r", encoding="utf-8") as f:
-        content = f.read()
+        reader = csv.reader(f)
+        rows = list(reader)
+    header = rows[0] if rows else []
+    text_parts = []
+    for row in rows[1:]:
+        if row and row[0].strip():
+            text_parts.append(row[0].strip())
+    content = "\n\n".join(text_parts)
     metadata = {
         "source": os.path.basename(file_path),
         "file_type": ".csv",
-        "rows": len(content.split("\n")) - 1,
+        "rows": len(rows) - 1,
     }
     return content, metadata
 
@@ -133,7 +142,6 @@ class DocumentIngestor:
         self.vector_store.add_chunks(chunk_dicts, embeddings.tolist())
         self.bm25_index.build(chunk_dicts)
         self.bm25_index.save(name="bm25_main")
-        self.vector_store.client.persist()
 
         with open(metadata_hash_file, "a") as f:
             f.write(file_hash + "\n")

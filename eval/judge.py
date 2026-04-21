@@ -1,6 +1,7 @@
 import os
 import json
 from typing import Optional
+from openai import OpenAI
 
 
 MODEL_FOR_JUDGE = "MiniMax-M2.7"
@@ -29,8 +30,6 @@ Respond with JSON only, no preamble:
 
 
 def llm_judge_score(query: str, expected: dict, actual_answer: str, sources: list[str]) -> dict:
-    from langchain_openai import ChatOpenAI
-
     key_facts = expected.get("key_facts", [])
     min_criteria = expected.get("min_score_criteria", "")
 
@@ -41,20 +40,16 @@ def llm_judge_score(query: str, expected: dict, actual_answer: str, sources: lis
         actual_answer=actual_answer,
     )
 
-    llm = ChatOpenAI(
+    client = OpenAI(api_key=os.getenv("MINIMAX_API_KEY"), base_url="https://api.minimax.io/v1")
+
+    response = client.chat.completions.create(
         model=MODEL_FOR_JUDGE,
-        openai_api_key=os.getenv("MINIMAX_API_KEY"),
-        openai_api_base="https://api.minimax.io/v1",
+        messages=[{"role": "user", "content": prompt}],
         temperature=0.0,
-        model_kwargs={"reasoning_split": True},
+        extra_body={"reasoning_split": True},
     )
 
-    response = llm.invoke([{"role": "user", "content": prompt}])
-
-    response_text = ""
-    for block in response.content:
-        if hasattr(block, "type") and block.type == "text":
-            response_text = block.text
+    response_text = response.choices[0].message.content or ""
 
     try:
         result = json.loads(response_text)

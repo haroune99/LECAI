@@ -11,15 +11,16 @@ Budget remaining: ${budget_remaining:.3f}
 Iteration: {iteration} / {max_iterations}
 
 Assess:
-1. Do the tool results provide sufficient information to answer the query accurately and completely?
-2. Did any tools fail? If so, is there an alternative approach?
-3. Is there a critical information gap that requires another tool call?
+1. Did the executed tools match ALL steps in the original plan? If any planned steps are missing, status MUST be "insufficient".
+2. Do the tool results provide sufficient information to answer the query accurately and completely?
+3. Did any tools fail? If so, is there an alternative approach?
+4. Is there a critical information gap that requires another tool call?
 
-Important: err on the side of "sufficient" — do not call more tools than necessary.
+MANDATORY RULE: Count the number of steps in the plan vs number of tool results. If plan has N steps but fewer than N tools were executed successfully, you MUST return STATUS: insufficient. Do NOT return "sufficient" when plan steps are missing.
 
 Respond in this exact format:
 STATUS: [sufficient | insufficient | tool_failed]
 REASON: [one sentence]
 NEXT_ACTION: [answer | retry:[tool_name]:[modified_params_json] | call:[tool_name]:[params_json]]
-CONFIDENCE: [high | medium | low]
+CONFIDENTENCE: [high | medium | low]
 """

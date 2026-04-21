@@ -23,6 +23,8 @@ def answerer_node(state: AgentState) -> AgentState:
         tool_results_formatted=tool_results_str,
     )
 
+    from src.agent.nodes.planner import _calc_cost
+
     result = llm_node(state, system_prompt, "")
 
     final_answer = result["text"]
@@ -48,6 +50,8 @@ def answerer_node(state: AgentState) -> AgentState:
         "run_status": "success",
         "tokens_input": state.get("tokens_input", 0) + input_tokens,
         "tokens_output": state.get("tokens_output", 0) + output_tokens,
+        "cost_usd": state.get("cost_usd", 0.0) + _calc_cost("MiniMax-M2.7", input_tokens, output_tokens),
+        "budget_exceeded": (state.get("cost_usd", 0.0) + _calc_cost("MiniMax-M2.7", input_tokens, output_tokens)) >= state.get("budget_cap_usd", 0.50),
         "reasoning_trace": reasoning_trace,
         "last_thinking": thinking,
     }

@@ -30,6 +30,8 @@ def reflector_node(state: AgentState) -> AgentState:
         max_iterations=state.get("max_iterations", 8),
     )
 
+    from src.agent.nodes.planner import _calc_cost
+
     result = llm_node(state, system_prompt, "")
 
     reflection_text = result["text"]
@@ -47,6 +49,10 @@ def reflector_node(state: AgentState) -> AgentState:
         elif line.startswith("NEXT_ACTION:"):
             next_action = line.split("NEXT_ACTION:", 1)[1].strip()
 
+    retry_count = state.get("retry_count", 0)
+    if reflection_status == "tool_failed":
+        retry_count = retry_count + 1
+
     reasoning_trace = state.get("reasoning_trace", [])
     reasoning_trace.append({
         "step": "reflector",
@@ -62,8 +68,11 @@ def reflector_node(state: AgentState) -> AgentState:
         **state,
         "reflection_text": reflection_text,
         "reflection_status": reflection_status,
+        "retry_count": retry_count,
         "tokens_input": state.get("tokens_input", 0) + input_tokens,
         "tokens_output": state.get("tokens_output", 0) + output_tokens,
+        "cost_usd": state.get("cost_usd", 0.0) + _calc_cost("MiniMax-M2.7", input_tokens, output_tokens),
+        "budget_exceeded": (state.get("cost_usd", 0.0) + _calc_cost("MiniMax-M2.7", input_tokens, output_tokens)) >= state.get("budget_cap_usd", 0.50),
         "reasoning_trace": reasoning_trace,
         "last_thinking": thinking,
     }

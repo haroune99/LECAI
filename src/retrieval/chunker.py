@@ -40,12 +40,14 @@ class HybridChunker:
     def _chunk_recursive(self, text: str, metadata: dict) -> list[Chunk]:
         chunks = []
         start = 0
+        chunk_index = 0
         while start < len(text):
             end = start + self.chunk_size
             chunk_text = text[start:end]
-            chunk_metadata = {**metadata, "chunk_start": start, "chunk_end": end}
+            chunk_metadata = {**metadata, "chunk_start": start, "chunk_end": end, "chunk_index": chunk_index}
             chunks.append(Chunk(text=chunk_text, metadata=chunk_metadata))
             start += self.chunk_size - self.overlap
+            chunk_index += 1
         return chunks
 
     def _chunk_pdf(self, text: str, metadata: dict) -> list[Chunk]:
@@ -58,10 +60,17 @@ class HybridChunker:
         current_heading = ""
 
         for line in lines:
-            if line.strip().startswith("# ") or (line.strip() and line.strip()[0] in "0123456789" and "." in line[:4]):
+            stripped = line.strip()
+            is_heading = (
+                stripped.startswith("# ")
+                or stripped.isupper()
+                or (len(stripped) < 60 and stripped and not stripped[0].isdigit())
+                or (":" in stripped and len(stripped) < 80 and stripped[-1] in ".:")
+            )
+            if is_heading and not any(c in stripped for c in ",.!?;"):
                 if current_section:
                     sections.append((current_heading, "\n".join(current_section)))
-                current_heading = line.strip()
+                current_heading = stripped
                 current_section = []
             else:
                 current_section.append(line)
@@ -82,14 +91,19 @@ class HybridChunker:
         return chunks
 
     def _chunk_csv(self, text: str, metadata: dict) -> list[Chunk]:
-        lines = text.strip().split("\n")
+        lines = [l for l in text.strip().split("\n") if l.strip()]
         if not lines:
             return []
-
-        header = lines[0]
         chunks = []
-        for i, row in enumerate(lines[1:], 1):
-            chunk_text = f"Columns: {header}\nRow {i}: {row}"
-            chunk_metadata = {**metadata, "row_index": i}
+        for i, row in enumerate(lines, 1):
+            chunk_text = row.strip()
+            if not chunk_text:
+                continue
+            chunk_metadata = {
+                **metadata,
+                "row_index": i,
+                "source_file": metadata.get("source", "unknown"),
+                "source_page": str(i),
+            }
             chunks.append(Chunk(text=chunk_text, metadata=chunk_metadata))
         return chunks

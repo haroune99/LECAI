@@ -1,97 +1,148 @@
 [
   {
     "id": 1,
-    "query": "What is the current UK import duty for Tsingtao beer, and what would be the total landed cost of 10,000 cases shipped from Qingdao to Liverpool?",
+    "query": "What is the current UK import duty for Tsingtao beer (HS code 2203), and what would be the total landed cost of 10,000 cases shipped from Qingdao to Liverpool if the FOB price is £8 per case, freight is £3,000, and insurance is 0.5%?",
     "expected": {
       "key_facts": [
         "commodity code 2203",
-        "duty rate around 12-20%",
-        "VAT 20%",
-        "landed cost calculation including CIF freight insurance duty VAT"
+        "UK import duty rate: 0.0% (beer made from malt under UK Global Tariff)",
+        "VAT: 20%",
+        "CIF = (8 × 10000) + 3000 = 83,000",
+        "insurance = 83,000 × 0.005 = 415",
+        "duty = 83,000 × 0.0 = 0",
+        "VAT = (83,000 + 0) × 0.20 = 16,600",
+        "total landed cost = 83,000 + 415 + 0 + 16,600 = 100,015"
       ],
       "tools_expected": ["trade_regulations_lookup", "trade_calculator"],
-      "min_score_criteria": "Must include actual duty rate and a numerical landed cost figure"
+      "min_score_criteria": "Must give the correct HS code (2203), correct duty rate (0%), and calculate the total landed cost with actual numbers"
     }
   },
   {
     "id": 2,
-    "query": "Has there been any change to UK sanctions on Chinese tech companies in the last 6 months that could affect our robotics division partnerships?",
+    "query": "Check if Integrity Technology Group (a Chinese robotics company) is on the UK OFSI sanctions list, and what does our partnership profiler say about their strategic fit for LEC Robotics?",
     "expected": {
-      "key_facts": ["OFSI sanctions context", "current sanctions status", "robotics/tech sector relevance"],
-      "tools_expected": ["market_intelligence_search", "trade_regulations_lookup"],
-      "min_score_criteria": "Must consult both current news and the sanctions KB, not just one"
+      "key_facts": [
+        "Integrity Technology Group is listed in sanctions DB (listing_date: 09/12/2025, jurisdiction: China)",
+        "sanctioned: True (or entity found — check DB for exact status)",
+        "partnership_profiler shows entity is in Chinese tech/robotics sector",
+        "strategic fit for LEC Robotics should be assessed"
+      ],
+      "tools_expected": ["trade_regulations_lookup", "partnership_profiler"],
+      "min_score_criteria": "Must perform sanctions check AND partnership profiler for the entity"
     }
   },
   {
     "id": 3,
-    "query": "What do our documents say about Tsingtao's UK distribution strategy, and is there any recent news about their expansion plans?",
+    "query": "What do our Tsingtao Annual Report documents say about their UK and international distribution strategy, and what does their brand positioning tell us about their premium positioning?",
     "expected": {
-      "key_facts": ["LEC Beverages distribution relationship", "UK on-trade/off-trade channels", "recent Tsingtao news"],
+      "key_facts": [
+        "Tsingtao positions as 'high-quality, high-price, high-visibility brand' internationally",
+        "Available in over 120 countries and regions",
+        "Brand Strength Index ranked #1 in World's Strongest Beer Brand",
+        "Tsingtao is LEC Beverages' exclusive UK distributor"
+      ],
       "tools_expected": ["document_intelligence", "market_intelligence_search"],
-      "min_score_criteria": "Must cite internal documents AND recent external news — not just one"
+      "min_score_criteria": "Must cite Tsingtao Annual Report and market news — not just one source"
     }
   },
   {
     "id": 4,
-    "query": "We're considering importing a new Chinese herbal drinks brand. What are the FSA compliance requirements and what commodity code would it fall under?",
+    "query": "What commodity code applies to flavored waters and functional beverages (HS code 2202), and what UK import duty applies to a new Chinese herbal drink brand importing under this classification?",
     "expected": {
-      "key_facts": ["novel foods regulation", "food safety requirement", "commodity code for herbal beverages", "FSA/HMRC overlap"],
-      "tools_expected": ["trade_regulations_lookup", "document_intelligence"],
-      "min_score_criteria": "Must give a specific commodity code and specific FSA requirements, not vague advice"
+      "key_facts": [
+        "Flavored waters (with added sugar/sweetening): commodity code 2202 10 00 00, duty rate 8%",
+        "Herbal drinks likely fall under 2202 (waters with flavoring) or 2201 (mineral waters)",
+        "VAT: 20% applies on all beverage imports",
+        "Novel foods/FSA approval required separately from HMRC tariff classification"
+      ],
+      "tools_expected": ["trade_regulations_lookup"],
+      "min_score_criteria": "Must provide a specific commodity code (starting 2202) and specific duty rate (8%)"
     }
   },
   {
     "id": 5,
-    "query": "Convert 500,000 CNY to GBP and tell me what percentage that represents of a typical SME investment threshold for LEC Global Capital.",
+    "query": "Convert 500,000 CNY to GBP using the trade calculator's current exchange rate, and then tell me what percentage this represents of LEC Global Capital's typical minimum investment threshold of £2M.",
     "expected": {
-      "key_facts": ["GBP/CNY conversion", "LEC Global Capital investment profile"],
-      "tools_expected": ["trade_calculator", "document_intelligence"],
-      "min_score_criteria": "Must provide a specific GBP figure and contextualise it against LEC's investment profile"
+      "key_facts": [
+        "500,000 CNY converts to approximately 54,644.81 GBP (using rate 1 GBP = 9.15 CNY)",
+        "Rate used: 1 CNY = 0.1093 GBP",
+        "54,644.81 GBP as percentage of £2,000,000 = approximately 2.73%",
+        "Far below the £2M typical investment threshold for LEC Global Capital"
+      ],
+      "tools_expected": ["trade_calculator"],
+      "min_score_criteria": "Must give a specific GBP figure and a percentage relative to £2M"
     }
   },
   {
     "id": 6,
-    "query": "Profile Meituan Dianping as a potential LEC Global Capital investment — who are they, what sector, and are there any UK sanctions concerns?",
+    "query": "Profile Meituan Dianping as a potential LEC Global Capital investment — who are they, what sector do they operate in, and perform a sanctions check to confirm they are clean (not on UK OFSI list).",
     "expected": {
-      "key_facts": ["Meituan is Chinese tech/delivery company", "HKEX listed", "sanctions check result"],
+      "key_facts": [
+        "Meituan Dianping is a Chinese tech company in food delivery and local services sector",
+        "Listed on HKEX (Hong Kong)",
+        "Sanctions check result: not sanctioned (clean status in OFSI database)",
+        "Food delivery sector is not a primary LEC sector (fit score 0.5)"
+      ],
       "tools_expected": ["partnership_profiler", "trade_regulations_lookup"],
-      "min_score_criteria": "Must perform explicit sanctions check, not just describe the company"
+      "min_score_criteria": "Must perform explicit sanctions check AND partnership profiler — not just describe the company"
     }
   },
   {
     "id": 7,
-    "query": "What are the UKCA marking requirements for importing robotic arm components from China?",
+    "query": "What do our documents say about LEC Industries' involvement in industrial AI, automation, or infrastructure projects, and what sectors does LEC Industries currently serve?",
     "expected": {
-      "key_facts": ["UKCA replaces CE mark post-Brexit", "machinery directive equivalent", "specific robotics component requirements"],
-      "tools_expected": ["trade_regulations_lookup"],
-      "min_score_criteria": "Single tool query — must give specific UKCA requirements, not generic advice"
+      "key_facts": [
+        "LEC Industries focuses on AI in industry, infrastructure, and healthcare",
+        "1971: LEC pioneered first trade deals between USA and China",
+        "LEC has historical presence in complex international trade conditions"
+      ],
+      "tools_expected": ["document_intelligence"],
+      "min_score_criteria": "Must cite specific content from LEC documents about industrial AI or infrastructure"
     }
   },
   {
     "id": 8,
-    "query": "Summarise what our documents say about the history of LEC's trade relationship with China, specifically the 1953 founding deal.",
+    "query": "Summarise what our documents say about the history of LEC's trade relationship with China, specifically the 1953 founding deal including who founded it, how it started, and what the first trade involved.",
     "expected": {
-      "key_facts": ["Jack Perry Senior 1953", "China Import Export Corporation", "first British company to trade with new China", "wool tops"],
+      "key_facts": [
+        "Jack Perry Senior founded LEC's China trade in 1953",
+        "First deal involved traveling to the International Economic Conference in Moscow",
+        "Jack Perry Senior led a delegation to China that forged a groundbreaking agreement",
+        "First British company to trade with 'New China' after the Cold War",
+        "Wool tops from Yorkshire were the original export"
+      ],
       "tools_expected": ["document_intelligence"],
-      "min_score_criteria": "Single tool query — must retrieve the specific 1953 story, not generic LEC history"
+      "min_score_criteria": "Must retrieve the specific 1953 founding story from the corpus — not generic LEC history"
     }
   },
   {
     "id": 9,
-    "query": "We have a potential Chinese partner in renewable energy. They're called Longi Green Energy. Check if they're sanctioned, profile them, and estimate what a £2M investment would look like in CNY over 3 years at 8% annual return.",
+    "query": "Profile Longi Green Energy as a potential LEC Global Capital renewable energy investment — who are they, are they sanctioned, and calculate what a £2,000,000 investment would grow to in CNY over 3 years at 8% annual return.",
     "expected": {
-      "key_facts": ["Longi is leading solar manufacturer", "sanctions clean", "£2M × 1.08^3 in CNY at current rate"],
+      "key_facts": [
+        "Longi Green Energy is a leading Chinese solar panel manufacturer in renewable_energy sector",
+        "Strategic fit for LEC: YES (sector = renewable_energy, score 0.8)",
+        "Sanctioned: No (clean status — not found in OFSI sanctions list)",
+        "ROI: £2,000,000 × (1.08)^3 = £2,519,424",
+        "In CNY: £2,519,424 × 9.15 = approximately 23,052,729 CNY"
+      ],
       "tools_expected": ["partnership_profiler", "trade_regulations_lookup", "trade_calculator"],
-      "min_score_criteria": "All three tools must be called. ROI projection must show actual numbers."
+      "min_score_criteria": "All three tools must be called. ROI projection must show actual numbers in both GBP and CNY."
     }
   },
   {
     "id": 10,
-    "query": "What is the most cost-effective route to get a new Chinese beverage brand into UK retail — direct import versus using a UK distributor — based on current duties, our distribution capabilities, and market conditions?",
+    "query": "Based on our documents and tariff data: what is the UK import duty for sparkling water with added flavor (HS code 2202 10 00 00) compared to still mineral water (HS code 2201), and what does our Tsingtao Annual Report say about beverage market positioning to help evaluate a new Chinese beverage brand entering the UK market?",
     "expected": {
-      "key_facts": ["duty rates", "LEC Beverages distribution capability", "distributor margin vs direct cost", "market conditions"],
-      "tools_expected": ["trade_regulations_lookup", "document_intelligence", "market_intelligence_search", "trade_calculator", "partnership_profiler"],
-      "min_score_criteria": "All 5 tools should be consulted. Answer must compare both routes with actual numbers."
+      "key_facts": [
+        "2202 10 00 00 (flavored/sparkling waters): UK duty rate 8%",
+        "2201 (mineral waters): UK duty rate 0%",
+        "VAT: 20% applies to both categories",
+        "Tsingtao positions as premium brand: 'high-quality, high-price, high-visibility'",
+        "Tsingtao available in 120+ countries with #1 Brand Strength Index ranking"
+      ],
+      "tools_expected": ["trade_regulations_lookup", "document_intelligence"],
+      "min_score_criteria": "Must provide specific commodity codes and duty rates for both codes, and cite Tsingtao positioning from corpus"
     }
   }
 ]

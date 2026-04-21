@@ -1,0 +1,52 @@
+[
+  {
+    "query_id": 1,
+    "score": 1,
+    "latency_ms": 131000
+  },
+  {
+    "query_id": 2,
+    "score": 1,
+    "latency_ms": 120000
+  },
+  {
+    "query_id": 3,
+    "score": 2,
+    "latency_ms": 66000
+  },
+  {
+    "query_id": 4,
+    "score": 1,
+    "latency_ms": 135000
+  },
+  {
+    "query_id": 5,
+    "score": 1,
+    "latency_ms": 97000
+  },
+  {
+    "query_id": 6,
+    "score": 1,
+    "latency_ms": 36000
+  },
+  {
+    "query_id": 7,
+    "score": 1,
+    "latency_ms": 47000
+  },
+  {
+    "query_id": 8,
+    "score": 1,
+    "latency_ms": 45000
+  },
+  {
+    "query_id": 9,
+    "score": 1,
+    "latency_ms": 93000
+  },
+  {
+    "query_id": 10,
+    "score": 1,
+    "latency_ms": 93000
+  }
+]

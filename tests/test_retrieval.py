@@ -13,8 +13,12 @@ def test_chunker_csv():
     chunker = HybridChunker()
     csv_text = "col1,col2,col3\nval1,val2,val3\nval4,val5,val6"
     chunks = chunker.chunk(csv_text, {"source": "test.csv"}, ".csv")
-    assert len(chunks) == 2
-    assert "col1" in chunks[0].text
+    assert len(chunks) == 3
+    assert chunks[0].text == "col1,col2,col3"
+    assert chunks[1].text == "val1,val2,val3"
+    assert chunks[2].text == "val4,val5,val6"
+    assert chunks[0].metadata["row_index"] == 1
+    assert chunks[2].metadata["row_index"] == 3
 
 
 def test_chunk_to_dict():

@@ -18,7 +18,7 @@ def route_after_reflection(state: AgentState) -> str:
     if status == "sufficient":
         return "answerer"
     elif status in ("insufficient", "tool_failed"):
-        return "executor"
+        return "planner"
     else:
         return "answerer"
 
@@ -40,6 +40,7 @@ def build_graph():
         "reflector",
         route_after_reflection,
         {
+            "planner": "planner",
             "executor": "executor",
             "answerer": "answerer",
         },

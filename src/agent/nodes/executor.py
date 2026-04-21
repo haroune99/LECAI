@@ -58,7 +58,7 @@ def execute_tool(call: dict) -> dict:
         }
 
 
-async def executor_node(state: AgentState) -> AgentState:
+def executor_node(state: AgentState) -> AgentState:
     pending = state.get("pending_tool_calls", [])
     completed = state.get("completed_tool_calls", [])
     tool_results = state.get("tool_results", [])
@@ -71,10 +71,7 @@ async def executor_node(state: AgentState) -> AgentState:
     if not ready_calls:
         ready_calls = pending[:1]
 
-    results = []
-    for call in ready_calls:
-        result = await asyncio.get_event_loop().run_in_executor(None, execute_tool, call)
-        results.append(result)
+    results = [execute_tool(call) for call in ready_calls]
 
     new_completed = completed + [r for r in results]
     new_pending = [c for c in pending if c["call_id"] not in [r["call_id"] for r in results]]
