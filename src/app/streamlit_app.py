@@ -1,6 +1,12 @@
 import streamlit as st
 import asyncio
 import os
+from pathlib import Path
+
+# Set working directory to repo root so data/indexes paths resolve correctly
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+os.chdir(REPO_ROOT)
+
 from src.agent.graph import build_graph
 from src.agent.state import default_state
 from src.agent.budget import BudgetTracker
@@ -131,11 +137,20 @@ if query:
                 result = {"final_answer": f"Error: {str(e)}", "reasoning_trace": [], "run_status": "failed"}
                 status.update(label="❌ Error", state="error")
 
+        # Render outside st.status() to avoid nested expander error
         st.markdown(result.get("final_answer", ""))
 
         if result.get("reasoning_trace"):
-            with st.expander("🧠 Agent Reasoning", expanded=False):
-                render_reasoning_trace(result["reasoning_trace"])
+            st.markdown("**🧠 Agent Reasoning**")
+            for entry in result["reasoning_trace"]:
+                with st.expander(f"  {entry.get('step', '?').capitalize()} (iter {entry.get('iteration', 0)})", expanded=False):
+                    if entry.get("thinking"):
+                        st.markdown(f"**Model reasoning:**")
+                        st.code(entry["thinking"][:500] if entry["thinking"] else "N/A", language=None)
+                    if entry.get("plan_text"):
+                        st.markdown(f"**Plan:** {entry['plan_text'][:300]}")
+                    if entry.get("reflection_text"):
+                        st.markdown(f"**Reflection:** {entry['reflection_text'][:200]}")
 
         st.session_state.messages.append({
             "role": "assistant",

@@ -15,12 +15,22 @@ def route_after_reflection(state: AgentState) -> str:
         return "answerer"
 
     status = state.get("reflection_status", "sufficient")
-    if status == "sufficient":
+    next_action = state.get("next_action", "")
+    pending = state.get("pending_tool_calls", [])
+
+    if next_action and "answer" in next_action.lower() and not pending:
         return "answerer"
-    elif status in ("insufficient", "tool_failed"):
+
+    if next_action and "call:" in next_action and pending:
         return "planner"
-    else:
+
+    if status in ("insufficient", "tool_failed"):
+        return "planner"
+
+    if status == "sufficient" and not pending:
         return "answerer"
+
+    return "answerer"
 
 
 def build_graph():

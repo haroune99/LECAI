@@ -68,6 +68,7 @@ def reflector_node(state: AgentState) -> AgentState:
         **state,
         "reflection_text": reflection_text,
         "reflection_status": reflection_status,
+        "next_action": next_action,
         "retry_count": retry_count,
         "tokens_input": state.get("tokens_input", 0) + input_tokens,
         "tokens_output": state.get("tokens_output", 0) + output_tokens,

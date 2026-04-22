@@ -162,6 +162,27 @@ def trade_regulations_lookup(
 ) -> ToolResult:
     if query_type == "sanctions":
         query_type = "sanctions_check"
+
+    query_type_map = {
+        "duty": "tariff",
+        "dutyrate": "tariff",
+        "duty_rate": "tariff",
+        "tariff_rate": "tariff",
+        "tariffcode": "tariff",
+        "tariff_code": "tariff",
+        "tariff_codes": "tariff",
+        "import_duty": "tariff",
+        "importduty": "tariff",
+        "sanctions": "sanctions_check",
+        "sanction": "sanctions_check",
+        "ofsi": "sanctions_check",
+        "regulatory": "regulatory_requirements",
+        "regulations": "regulatory_requirements",
+    }
+    normalized = query_type_map.get(query_type.lower(), query_type.lower())
+    if normalized in ("tariff", "sanctions_check", "regulatory_requirements"):
+        query_type = normalized
+
     start = time.time()
     init_kb()
     conn = sqlite3.connect(DB_PATH)
@@ -290,3 +311,12 @@ def trade_regulations_lookup(
 
     finally:
         conn.close()
+
+    return ToolResult(
+        call_id="local",
+        tool_name="trade_regulations_lookup",
+        status="error",
+        content={"error": f"Unknown query_type: {query_type}. Valid types: tariff, sanctions_check, regulatory_requirements"},
+        latency_ms=int((time.time() - start) * 1000),
+        error_message=f"Unknown query_type: {query_type}",
+    )

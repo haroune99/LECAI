@@ -52,6 +52,7 @@ class AgentState(TypedDict):
 
     last_thinking: str | None
     prompt_version: str | None
+    next_action: str
 
 
 def default_state() -> AgentState:
@@ -79,4 +80,5 @@ def default_state() -> AgentState:
         reasoning_trace=[],
         last_thinking=None,
         prompt_version=None,
+        next_action="",
     )

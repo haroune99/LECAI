@@ -16,7 +16,11 @@ Current iteration: {iteration} of {max_iterations}
 
 User query: {user_query}
 
-You MUST produce a structured plan before any tool is called. Your plan must:
+IMPORTANT: Do NOT use JSON, XML, or markdown tool call blocks (no ```tool_call, no <invoke>, no ```json). 
+Do NOT call any tools directly in your response. Only produce a TEXT PLAN that describes what tools you would call.
+The executor will handle actual tool execution.
+
+You MUST produce a structured plan in plain text. Your plan must:
 1. Identify exactly what information is needed to answer this query
 2. Map each information need to a specific tool with its required parameters
 3. Identify which steps depend on previous results (sequential) vs are independent (parallel)

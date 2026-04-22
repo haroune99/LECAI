@@ -134,6 +134,19 @@ def partnership_profiler(
                 latency_ms=int((time.time() - start) * 1000),
             )
 
+        elif analysis_type not in ("profile", "strategic_fit", "risk_assessment"):
+            return ToolResult(
+                call_id="local",
+                tool_name="partnership_profiler",
+                status="error",
+                content={
+                    "entity_name": entity_name,
+                    "error": f"Invalid analysis_type '{analysis_type}'. Valid types: profile, strategic_fit, risk_assessment",
+                },
+                latency_ms=int((time.time() - start) * 1000),
+                error_message=f"Invalid analysis_type: {analysis_type}",
+            )
+
         elif analysis_type == "risk_assessment":
             from src.tools.trade_regulations import trade_regulations_lookup
 
@@ -142,7 +155,9 @@ def partnership_profiler(
                 entity_name=entity_name,
             )
 
-            sanctioned = sanctions_result.content.get("sanctioned", False)
+            sanctioned = False
+            if sanctions_result and hasattr(sanctions_result, 'content') and sanctions_result.content:
+                sanctioned = sanctions_result.content.get("sanctioned", False)
 
             return ToolResult(
                 call_id="local",

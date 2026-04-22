@@ -4,8 +4,8 @@ import os
 
 
 MINIMAX_COSTS = {
-    "MiniMax-M2.7": {"input_per_1k": 0.30, "output_per_1k": 1.20},
-    "MiniMax-M2.7-highspeed": {"input_per_1k": 0.60, "output_per_1k": 2.40},
+    "MiniMax-M2.7": {"input_per_1m": 0.30, "output_per_1m": 1.20},
+    "MiniMax-M2.7-highspeed": {"input_per_1m": 0.60, "output_per_1m": 2.40},
 }
 
 
@@ -25,8 +25,8 @@ class BudgetTracker:
         call_type: str,
         query_id: str,
     ) -> dict:
-        cost = (input_tokens / 1000 * MINIMAX_COSTS.get(model, MINIMAX_COSTS["MiniMax-M2.7"])["input_per_1k"]) + \
-               (output_tokens / 1000 * MINIMAX_COSTS.get(model, MINIMAX_COSTS["MiniMax-M2.7"])["output_per_1k"])
+        cost = (input_tokens / 1_000_000 * MINIMAX_COSTS.get(model, MINIMAX_COSTS["MiniMax-M2.7"])["input_per_1m"]) + \
+               (output_tokens / 1_000_000 * MINIMAX_COSTS.get(model, MINIMAX_COSTS["MiniMax-M2.7"])["output_per_1m"])
 
         self.total_input_tokens += input_tokens
         self.total_output_tokens += output_tokens

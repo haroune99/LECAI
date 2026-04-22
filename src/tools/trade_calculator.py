@@ -50,20 +50,18 @@ def trade_calculator(
             )
 
         elif operation == "landed_cost":
-            fob_price = float(params.get("fob_price", 0))
-            units = int(params.get("units", 0))
+            fob_price = float(params.get("fob_price", 0) or params.get("fob_per_unit", 0))
+            units = int(params.get("units", 0) or params.get("quantity", 0))
             freight = float(params.get("freight", 0))
             insurance_rate = float(params.get("insurance_rate", 0.005))
             duty_rate = float(params.get("duty_rate", 0))
-            vat_rate = float(params.get("vat_rate", 20))
             handling = float(params.get("handling", 0))
             customs_clearance = float(params.get("customs_clearance", 0))
 
             cif = (fob_price * units) + freight
-            insurance = cif * insurance_rate
+            insurance = cif * (insurance_rate / 100)
             duty = cif * (duty_rate / 100)
-            vat = (cif + duty) * (vat_rate / 100)
-            total = cif + insurance + duty + vat + handling + customs_clearance
+            total = cif + insurance + duty + handling + customs_clearance
 
             return ToolResult(
                 call_id="local",
@@ -75,7 +73,6 @@ def trade_calculator(
                     "cif_value": round(cif, 2),
                     "insurance": round(insurance, 2),
                     "uk_import_duty": round(duty, 2),
-                    "uk_vat": round(vat, 2),
                     "handling": handling,
                     "customs_clearance": customs_clearance,
                     "total_landed_cost": round(total, 2),
@@ -101,9 +98,9 @@ def trade_calculator(
             )
 
         elif operation == "roi_projection":
-            principal = float(params.get("principal", 0))
-            rate = float(params.get("annual_rate", 0))
-            years = int(params.get("years", 1))
+            principal = float(params.get("principal", 0) or params.get("initial_investment", 0) or params.get("amount", 0))
+            rate = float(params.get("annual_rate", 0) or params.get("annual_return_rate", 0) or params.get("rate", 0))
+            years = int(params.get("years", 0) or params.get("investment_period_years", 1))
 
             future_value = principal * ((1 + rate / 100) ** years)
             total_return = future_value - principal

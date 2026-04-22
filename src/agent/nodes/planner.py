@@ -39,12 +39,38 @@ EXAMPLES:
   "What is the commodity code for beer?" → query_type="tariff", commodity_code="2203"
 """
 
-MINIMAX_COSTS = {"MiniMax-M2.7": {"input_per_1k": 0.30, "output_per_1k": 1.20}}
+MINIMAX_COSTS = {"MiniMax-M2.7": {"input_per_1m": 0.30, "output_per_1m": 1.20}}
 
 
 def _calc_cost(model: str, input_tokens: int, output_tokens: int) -> float:
     rates = MINIMAX_COSTS.get(model, MINIMAX_COSTS["MiniMax-M2.7"])
-    return (input_tokens / 1000 * rates["input_per_1k"]) + (output_tokens / 1000 * rates["output_per_1k"])
+    return (input_tokens / 1_000_000 * rates["input_per_1m"]) + (output_tokens / 1_000_000 * rates["output_per_1m"])
+
+
+def _has_placeholder_value(val) -> bool:
+    if val is None or val == "null" or val == "<null>":
+        return True
+    if isinstance(val, str) and ("from_step" in val.lower() or "<from step" in val.lower() or "step_" in val.lower()):
+        return True
+    if isinstance(val, dict):
+        return any(_has_placeholder_value(v) for v in val.values())
+    return False
+
+
+def _auto_inject_dependencies(plan_steps: list[dict]) -> list[dict]:
+    for i, step in enumerate(plan_steps):
+        if i == 0:
+            continue
+        tool_string = step.get("tool", "unknown")
+        tool_kwargs = step.get("_tool_kwargs", {})
+        if not tool_kwargs:
+            tool_name, tool_kwargs = parse_tool_invocation(tool_string)
+        has_placeholder = _has_placeholder_value(tool_kwargs)
+        if has_placeholder:
+            existing_dep = str(step.get("depends_on", "none")).lower()
+            if "none" in existing_dep or not step.get("depends_on"):
+                step["depends_on"] = f"Step {i}"
+    return plan_steps
 
 
 def planner_node(state: AgentState) -> AgentState:
@@ -74,7 +100,8 @@ def planner_node(state: AgentState) -> AgentState:
     thinking = result["thinking"]
 
     plan_steps = parse_plan_steps(plan_text)
-    pending_calls = build_tool_calls(plan_steps)
+    existing_completed = state.get("completed_tool_calls", [])
+    pending_calls = build_tool_calls(plan_steps, existing_completed)
 
     reasoning_trace = state.get("reasoning_trace", [])
     reasoning_trace.append({
@@ -92,7 +119,7 @@ def planner_node(state: AgentState) -> AgentState:
         "plan_text": plan_text,
         "plan_steps": plan_steps,
         "pending_tool_calls": pending_calls,
-        "completed_tool_calls": [],          # Reset - new plan, no completed calls yet
+        "completed_tool_calls": existing_completed,  # PRESERVE across planner re-runs
         "tool_results": state.get("tool_results", []),  # KEEP accumulated results across iterations
         "tokens_input": state.get("tokens_input", 0) + input_tokens,
         "tokens_output": state.get("tokens_output", 0) + output_tokens,
@@ -113,6 +140,59 @@ def parse_plan_steps(plan_text: str) -> list[dict]:
         if current_step:
             steps.append(current_step)
             current_step = {}
+
+    tool_call_blocks = re.findall(r'\[TOOL_CALL\](.*?)\[/TOOL_CALL\]', plan_text, re.DOTALL)
+    for block in tool_call_blocks:
+        tool_name_match = re.search(r'tool\s*=>\s*"([^"]+)"', block)
+        if tool_name_match:
+            tool_name = tool_name_match.group(1).strip()
+            if tool_name in TOOL_REGISTRY_PLAIN:
+                _add_step()
+                current_step = {"step": f"Tool call: {tool_name}", "tool": tool_name, "depends_on": "none", "_tool_kwargs": {}}
+
+                kv_pattern = re.compile(r'--(\w+)\s*(?:"([^"]*)"|(\{[^}]*\}))')
+                for match in kv_pattern.finditer(block):
+                    k = match.group(1)
+                    v = match.group(2) or match.group(3)
+                    if v is None:
+                        continue
+                    if v.startswith('{'):
+                        import json as _json
+                        try:
+                            current_step["_tool_kwargs"][k] = _json.loads(v)
+                        except _json.JSONDecodeError:
+                            current_step["_tool_kwargs"][k] = v
+                    elif k in ("commodity_code", "entity_name", "category", "query_type", "operation", "analysis_type", "entity_type"):
+                        current_step["_tool_kwargs"][k] = v
+                    else:
+                        try:
+                            current_step["_tool_kwargs"][k] = int(v)
+                        except ValueError:
+                            try:
+                                current_step["_tool_kwargs"][k] = float(v)
+                            except ValueError:
+                                current_step["_tool_kwargs"][k] = v
+                continue
+
+    invoke_blocks = re.findall(r'<invoke name="([^"]+)"[^>]*>(.*?)(?:</invoke>|</minimax:tool_call>)', plan_text, re.DOTALL)
+    for tool_name, block_content in invoke_blocks:
+        if tool_name in TOOL_REGISTRY_PLAIN:
+            _add_step()
+            current_step = {"step": f"Tool call: {tool_name}", "tool": tool_name, "depends_on": "none", "_tool_kwargs": {}}
+
+            param_matches = re.findall(r'<parameter name="([^"]+)"[^>]*>([^<]+)</parameter>', block_content)
+            for k, v in param_matches:
+                if k in ("commodity_code", "entity_name", "category", "query_type", "operation", "analysis_type", "entity_type"):
+                    current_step["_tool_kwargs"][k] = v.strip()
+                else:
+                    try:
+                        current_step["_tool_kwargs"][k] = int(v.strip())
+                    except ValueError:
+                        try:
+                            current_step["_tool_kwargs"][k] = float(v.strip())
+                        except ValueError:
+                            current_step["_tool_kwargs"][k] = v.strip()
+            continue
 
     for line in plan_text.split("\n"):
         line = line.strip()
@@ -185,7 +265,25 @@ def parse_plan_steps(plan_text: str) -> list[dict]:
         elif line.startswith("REASONING:"):
             break
 
+        tool_call_match = re.match(r'\[TOOL_CALL\]\s*\{tool\s*=>\s*"([^"]+)"', line)
+        if tool_call_match:
+            tool_name = tool_call_match.group(1).strip()
+            if tool_name in TOOL_REGISTRY_PLAIN:
+                _add_step()
+                current_step = {"step": f"Tool call: {tool_name}", "tool": tool_name, "depends_on": "none", "_tool_kwargs": {}}
+            continue
+
+        if '<invoke ' in line or 'Ray' in line or '</invoke>' in line:
+            invoke_match = re.search(r'<invoke name="([^"]+)"', line)
+            if invoke_match:
+                tool_name = invoke_match.group(1).strip()
+                if tool_name in TOOL_REGISTRY_PLAIN:
+                    _add_step()
+                    current_step = {"step": f"Tool call: {tool_name}", "tool": tool_name, "depends_on": "none", "_tool_kwargs": {}}
+            continue
+
     _add_step()
+    steps = [s for s in steps if s.get("tool") != "unknown"]
     return steps
 
 
@@ -270,16 +368,44 @@ def parse_tool_invocation(tool_string: str) -> tuple[str, dict]:
     return tool_name, kwargs
 
 
-def build_tool_calls(plan_steps: list[dict]) -> list[dict]:
+def _normalize_kwargs(kwargs: dict) -> dict:
+    def normalize_val(v):
+        if isinstance(v, dict):
+            return tuple(sorted((k, normalize_val(val)) for k, val in v.items()))
+        if isinstance(v, (int, float)):
+            return str(v)
+        return v
+    return tuple(sorted((k, normalize_val(val)) for k, val in kwargs.items()))
+
+
+def build_tool_calls(plan_steps: list[dict], existing_completed: list | None = None) -> list[dict]:
+    if existing_completed is None:
+        existing_completed = []
+
+    plan_steps = _auto_inject_dependencies(list(plan_steps))
+
     calls = []
     step_name_to_index = {}
+    completed_call_ids = {comp["call_id"] for comp in existing_completed if comp.get("status") == "success"}
+    completed_normalized = {}
+    for comp in existing_completed:
+        if comp.get("status") == "success":
+            norm = _normalize_kwargs(comp.get("tool_input", {}))
+            key = (comp.get("tool_name"), norm)
+            completed_normalized[key] = comp["call_id"]
 
     for i, step in enumerate(plan_steps):
-        call_id = f"call_{uuid.uuid4().hex[:8]}"
         tool_string = step.get("tool", "unknown")
         tool_name, tool_kwargs = parse_tool_invocation(tool_string)
         if step.get("_tool_kwargs"):
             tool_kwargs = step["_tool_kwargs"]
+
+        norm = _normalize_kwargs(tool_kwargs)
+        match_key = (tool_name, norm)
+        if match_key in completed_normalized:
+            call_id = completed_normalized[match_key]
+        else:
+            call_id = f"call_{uuid.uuid4().hex[:8]}"
 
         depends_indices = []
         depends_raw = step.get("depends_on", "none")
@@ -300,7 +426,15 @@ def build_tool_calls(plan_steps: list[dict]) -> list[dict]:
         step_name_to_index[step_name] = i
 
     call_id_by_index = {i: c["call_id"] for i, c in enumerate(calls)}
+
     for call in calls:
-        call["depends_on"] = [call_id_by_index[i] for i in call["depends_on"]]
+        resolved_deps = []
+        for dep_idx in call["depends_on"]:
+            dep_call_id = call_id_by_index.get(dep_idx)
+            if dep_call_id and dep_call_id in completed_call_ids:
+                resolved_deps.append(dep_call_id)
+            elif dep_call_id:
+                resolved_deps.append(dep_call_id)
+        call["depends_on"] = resolved_deps
 
     return calls
