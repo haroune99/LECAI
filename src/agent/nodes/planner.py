@@ -431,10 +431,11 @@ def build_tool_calls(plan_steps: list[dict], existing_completed: list | None = N
         resolved_deps = []
         for dep_idx in call["depends_on"]:
             dep_call_id = call_id_by_index.get(dep_idx)
-            if dep_call_id and dep_call_id in completed_call_ids:
-                resolved_deps.append(dep_call_id)
-            elif dep_call_id:
-                resolved_deps.append(dep_call_id)
+            if dep_call_id:
+                if dep_call_id in completed_call_ids:
+                    resolved_deps.append(dep_call_id)
+                elif dep_call_id in completed_normalized.values():
+                    resolved_deps.append(dep_call_id)
         call["depends_on"] = resolved_deps
 
     return calls

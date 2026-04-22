@@ -159,24 +159,39 @@ def executor_node(state: AgentState) -> AgentState:
     if not pending:
         return state
 
-    completed_ids = [comp["call_id"] for comp in completed]
-    ready_calls = [c for c in pending if all(dep in completed_ids for dep in c.get("depends_on", []))]
+    completed_ids = {comp["call_id"] for comp in completed if comp.get("status") == "success"}
 
-    if not ready_calls:
-        ready_calls = pending[:1]
+    iteration_increment = 0
 
-    ready_calls = [_inject_dep_params(rc, completed) for rc in ready_calls]
+    while True:
+        ready_calls = [c for c in pending if all(dep in completed_ids for dep in c.get("depends_on", []))]
 
-    results = [execute_tool(call) for call in ready_calls]
+        if not ready_calls:
+            non_dep_pending = [c for c in pending if not c.get("depends_on")]
+            if non_dep_pending:
+                ready_calls = [non_dep_pending[0]]
+            else:
+                break
 
-    new_completed = completed + [r for r in results]
-    new_pending = [c for c in pending if c["call_id"] not in [r["call_id"] for r in results]]
-    new_results = tool_results + results
+        ready_calls = [_inject_dep_params(rc, completed) for rc in ready_calls]
+        results = [execute_tool(call) for call in ready_calls]
+
+        for r in results:
+            if r.get("status") == "success":
+                completed_ids.add(r["call_id"])
+
+        completed = completed + [r for r in results]
+        pending = [c for c in pending if c["call_id"] not in [r["call_id"] for r in results]]
+        tool_results = tool_results + results
+        iteration_increment += 1
+
+        if not pending:
+            break
 
     return {
         **state,
-        "completed_tool_calls": new_completed,
-        "pending_tool_calls": new_pending,
-        "tool_results": new_results,
-        "iteration": state.get("iteration", 0) + 1,
+        "completed_tool_calls": completed,
+        "pending_tool_calls": pending,
+        "tool_results": tool_results,
+        "iteration": state.get("iteration", 0) + iteration_increment,
     }
