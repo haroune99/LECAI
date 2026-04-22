@@ -1,59 +1,115 @@
 # What I'd Ship Next — Concrete Roadmap
 
-## 1. Clarification Loop Before Planning
+One week of additional development time. These are ordered by impact-to-effort ratio.
 
-For ambiguous multi-intent queries (detected by low planner confidence score), add a node that asks the user one clarifying question before executing.
+## 1. Replace Regex Plan Parsing with Structured Outputs
+**Estimated: 4 hours**
 
-**Why it matters:** Query 9 (Longi Green Energy) can be interpreted as a sanctions check, a company profile, or an ROI calculation. Without clarification, the agent commits early and may answer the wrong interpretation.
+The current `parse_plan_steps` uses hand-rolled regex against the planner's plain-text output. If the model produces "Step 1 —" instead of "Step 1:", the parser silently returns `[]` and the executor has nothing to dispatch. The right fix is JSON-mode prompting.
 
-**What to build:** In the planner node, detect when `CONFIDENCE: low` — route to a clarification sub-state that returns a question to the user. The main loop pauses until the user answers.
+**What the structured planner output looks like:**
+```json
+{
+  "steps": [
+    {
+      "step_id": "s1",
+      "action": "Look up commodity code 2203 duty rate",
+      "tool": "trade_regulations_lookup",
+      "tool_input": {"query_type": "tariff", "commodity_code": "2203000000"},
+      "depends_on": []
+    },
+    {
+      "step_id": "s2",
+      "action": "Calculate landed cost for 10,000 cases",
+      "tool": "trade_calculator",
+      "tool_input": {"operation": "landed_cost", "params": {"...": "..."}},
+      "depends_on": ["s1"]
+    }
+  ],
+  "parallel_groups": [["s1"], ["s2"]],
+  "reasoning": "Need duty rate before landed cost calculation.",
+  "confidence": "high"
+}
+```
 
-**Estimated effort:** 1 day.
-
----
-
-## 2. Per-User Session Memory with LangGraph Checkpointing
-
-With `SqliteSaver` (already in the graph), persist conversation history per user session. Enable follow-up queries like "do the same calculation for Shanghai" without re-establishing context.
-
-**Why it matters:** The current build is stateless — each query starts fresh. LEC staff would naturally want to iterate on a query. Without session memory, they re-type context every time.
-
-**What to build:** Add `thread_id` as a session identifier. Use it for checkpointing. Store session summaries in SQLite after 10+ messages to compress history.
-
-**Estimated effort:** 2 hours — the infrastructure is already wired.
-
----
-
-## 3. Automated KB Refresh Pipeline
-
-A scheduled job (cron or Airflow) that re-ingests documents with expired TTL, re-fetches HMRC tariff data from gov.uk CSV APIs, updates BM25 and vector indexes incrementally.
-
-**Why it matters:** UK Global Tariff codes update quarterly. OFSI sanctions are updated continuously. A stale KB is a compliance risk — the agent might return an outdated duty rate or miss a new sanctions listing.
-
-**What to build:** Per-entry TTL metadata in SQLite. A refresh script that checks `last_updated < now - 90 days` and triggers re-fetch. Integration with gov.uk open data APIs for automatic tariff CSV download.
-
-**Estimated effort:** 1 day.
-
----
-
-## 4. Streaming Responses in Streamlit
-
-With LangGraph's streaming API + `st.write_stream`, users see tokens appear as the agent reasons — plan being generated, tool calls firing, reflection happening.
-
-**Why it matters:** Perceived latency is a product decision. A 4-second wait for a final answer feels longer than a 4-second stream of partial responses. For executive demos, streaming is the difference between "that feels slow" and "wow, look at it thinking."
-
-**What to build:** Replace `graph.ainvoke` with `graph.astream` in Streamlit. Yield intermediate states via `st.write_stream`. Show the reasoning trace incrementally.
-
-**Estimated effort:** 3 hours.
+This also unlocks real parallel execution — `parallel_groups` is machine-readable, not parsed from prose.
 
 ---
 
-## 5. Tool Result Caching with Redis
+## 2. Parallel Tool Execution
+**Estimated: 3 hours (depends on Item 1)**
 
-Many trade regulation queries are idempotent — "what's the duty rate for 2203.00?" returns the same answer every time. A Redis cache with a TTL matching the KB refresh cycle (90 days) cuts latency and API cost significantly.
+Implement `asyncio.gather()` dispatch of independent tool calls. Groups execute sequentially; calls within a group execute in parallel.
 
-**Why it matters:** At 1,000 queries/day, the trade_calculator and trade_regulations_lookup tools fire ~2,000 times. If 40% are repeat queries, that's 800 cached responses × ~50ms saved = 40 seconds of user wait time eliminated per day. More importantly, Tavily search calls are cached and don't count against the free tier.
+Query 9 (Longi: profile + sanctions + ROI) has two independent first steps. Sequential execution adds ~300ms of unnecessary latency per query.
 
-**What to build:** Redis client with `@cache(ttl=86400 * 90)` decorator on tool functions. Cache key = hash of (tool_name, kwargs). Invalidate on KB refresh.
+```python
+# executor.py — dispatch groups in parallel:
+async def dispatch_parallel_group(tool_calls: list[ToolCall]) -> list[ToolResult]:
+    tasks = [execute_single_tool(tc) for tc in tool_calls]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    return [handle_result(tc, r) for tc, r in zip(tool_calls, results)]
+```
 
-**Estimated effort:** 4 hours.
+---
+
+## 3. Semantic Query Cache
+**Estimated: 4 hours**
+
+A cache that returns a stored answer for queries semantically similar to a previous query — not just exact key matches.
+
+"Why is the UK import duty on Tsingtao beer?" and "What's the current UK duty rate for beer from China?" are different strings but the same query. A key-value cache misses the second one. A semantic cache embeds the incoming query, finds the nearest stored query by cosine similarity, and returns the cached answer if similarity exceeds 0.92.
+
+Use the existing `all-MiniLM-L6-v2` embedder — no new dependencies. Add TTL per cache entry (90 days for regulatory data, 1 day for web search results).
+
+---
+
+## 4. LangSmith Observability Integration
+**Estimated: 30 minutes**
+
+Wire LangGraph's native LangSmith integration. Set three env vars and you get full traces — LLM calls, token counts, tool dispatch, routing decisions — in a visual dashboard.
+
+```bash
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=your_key
+LANGCHAIN_PROJECT=lec-trade-agent
+```
+
+Free tier is sufficient for evaluation volumes. In production, you need to know which queries are slow, which tools fail most, and when a planner produces a bad plan. Right now you'd be toggling debug logs manually.
+
+---
+
+## 5. Adaptive Retrieval Weights Based on Query Type
+**Estimated: 1 day including eval delta measurement**
+
+BM25 outperforms semantic search on exact-match queries ("what is commodity code 220300"). Semantic search outperforms BM25 on conceptual queries ("what are LEC's China trade principles"). Fixed weights (BM25=0.3, semantic=0.5, reranker=0.2) are a compromise suboptimal for both.
+
+```python
+class AdaptiveWeightSelector:
+    PROFILES = {
+        "exact_lookup":  {"bm25": 0.6, "semantic": 0.3, "reranker": 0.1},
+        "conceptual":   {"bm25": 0.1, "semantic": 0.7, "reranker": 0.2},
+        "mixed":        {"bm25": 0.3, "semantic": 0.5, "reranker": 0.2},
+    }
+
+    def classify_and_select(self, query: str) -> dict:
+        if re.search(r'\d{4,}', query) or any(w in query.lower() for w in ["code", "rate", "number"]):
+            return self.PROFILES["exact_lookup"]
+        if any(w in query.lower() for w in ["strategy", "principles", "history"]):
+            return self.PROFILES["conceptual"]
+        return self.PROFILES["mixed"]
+```
+
+Measure the delta in `precision@5` across eval queries. This becomes a second ablation to report — genuinely interesting to document.
+
+---
+
+## Priority Order
+
+| # | Item | Effort | Impact |
+|---|------|--------|--------|
+| 1 | JSON plan parsing | 4h | High — fixes silent failure mode |
+| 2 | Parallel execution | 3h | Medium — latency on complex queries |
+| 3 | Semantic cache | 4h | High — reduces cost/latency on repeated queries |
+| 4 | LangSmith | 30min | High — production observability |
+| 5 | Adaptive weights | 1d | Medium — research signal for report |

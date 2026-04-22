@@ -16,23 +16,24 @@ TOOL_DESCRIPTIONS = {
 }
 
 QUERY_TYPE_MAPPINGS = """
-QUERY_TYPE MAPPINGS for trade_regulations_lookup:
+VALID query_type VALUES for trade_regulations_lookup — ONLY THESE THREE:
   query_type="tariff"     → Lookup UK import duty by HS commodity code
                             → Use when: user asks about duty rates, tariff codes, HS codes, VAT
                             → MUST provide: commodity_code (e.g. "2203" for beer, "8517" for telecoms)
-                            → SQL: SELECT * FROM tariff_codes WHERE commodity_code = "2203"
 
   query_type="sanctions_check" → Check if an entity is on the OFSI sanctions list
                             → Use when: user asks about sanctions, OFSI, blocked entities, due diligence
                             → MUST provide: entity_name (e.g. "Huawei", "Meituan")
-                            → SQL: SELECT * FROM sanctions_entities WHERE entity_name LIKE "%Huawei%"
 
   query_type="regulatory_requirements" → Lookup UK import compliance requirements
                             → Use when: user asks about UKCA, FSA, food safety, compliance
                             → MUST provide: category (e.g. "beverages", "machinery", "food")
-                            → SQL: SELECT * FROM regulatory_requirements WHERE applies_to = "beverages"
 
-EXAMPLES:
+DO NOT use any other query_type values. The following are INVALID and will cause errors:
+  • "commodity_tariff", "commodity_code", "duty_rate", "import_duty", "tariff_rate", etc.
+  • ONLY "tariff", "sanctions_check", "regulatory_requirements" are valid.
+
+CORRECT EXAMPLES:
   "What is the duty on beer?"           → query_type="tariff", commodity_code="2203"
   "Is Huawei sanctioned?"               → query_type="sanctions_check", entity_name="Huawei"
   "What are the FSA requirements?"      → query_type="regulatory_requirements", category="beverages"

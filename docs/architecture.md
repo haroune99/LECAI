@@ -301,12 +301,111 @@ CREATE TABLE regulatory_requirements (
 
 ### Corpus Statistics
 
-| File | Format | Chunks | SQLite Table |
+**SQLite KB** (`data/processed/trade_regulations.db`):
+
+| Table | Rows | Used by |
+|---|---|---|
+| `tariff_codes` | 17,812 | `trade_regulations_lookup` tariff lookups |
+| `sanctions_entities` | 56,748 | `trade_regulations_lookup` sanctions checks |
+| `regulatory_requirements` | 20 | `trade_regulations_lookup` compliance queries |
+
+**ChromaDB** (`data/indexes/`):
+
+| Source | Chunks | Notes |
+|---|---|---|
+| UK Global Tariff CSV | 82,874 | Tariff data ingested as text (note: only column 0 ingested — SQLite used for actual lookups) |
+| UK OFSI Sanctions CSV | 56,861 | Entity names and reasons (note: raw CSV text — SQLite used for actual lookups) |
+| Tsingtao Annual Report PDF | 1,194 | English text extracted via bilingual split heuristic |
+| Alcohol Duty Regulations PDF | 121 | HMRC excise duty rules |
+| HMRC Force of Law Guidance PDF | 42 | Alcohol duty legal basis |
+| LEC About page CSV | 7 | LEC founding history (1953 deal) |
+| LEC Past Works CSV | 5 | Historical trade partnerships |
+| **Total** | **141,105** | |
+
+**Note:** Tariff and sanctions lookups go to **SQLite** directly (fast SQL queries). ChromaDB is used only for `document_intelligence` RAG queries, which search PDFs and LEC website content — not the structured KB tables.
+
+---
+
+## Appendix — Sample Data
+
+### `tariff_codes` — SQLite
+
+```sql
+SELECT commodity_code, description, category, uk_duty_rate, vat_rate, origin_rules
+FROM tariff_codes
+WHERE commodity_code = '2203000000';
+```
+| commodity_code | description | category | uk_duty_rate | vat_rate | origin_rules |
+|---|---|---|---|---|---|
+| 2203000000 | Beer made from malt | Tariff preference | 0.0 | 20.0 | Developing Countries Trading Scheme (DCTS) - Standard Preferences |
+
+```sql
+WHERE commodity_code = '2202100000';
+```
+| commodity_code | description | category | uk_duty_rate | vat_rate | origin_rules |
+|---|---|---|---|---|---|
+| 2202100000 | Waters, including mineral waters and aerated waters, containing added sugar or other sweetening matter or flavoured | Third country duty | 8.0 | 20.0 | ERGA OMNES |
+
+---
+
+### `sanctions_entities` — SQLite
+
+```sql
+SELECT entity_name, jurisdiction, listing_date, reason
+FROM sanctions_entities
+WHERE entity_name LIKE '%Integrity Tech%';
+```
+| entity_name | jurisdiction | listing_date | reason (truncated) |
 |---|---|---|---|
-| UK Global Tariff | CSV | 82,874 (rows) | tariff_codes |
-| UK OFSI Sanctions | CSV | 56,748 (rows) | sanctions_entities |
-| HMRC Alcohol Duty Notice | PDF (9 pages) | 42 | regulatory_requirements |
-| LEC About page | CSV | 7 | — (ChromaDB only) |
-| LEC Past Works | CSV | 5 | — (ChromaDB only) |
-| Tsingtao Annual Report | PDF (259 pages) | 1,203 | — (ChromaDB only) |
-| **Total** | | **1,257 + 82,874 + 56,748** | |
+| Integrity Technology Group Incorporated | China | 09/12/2025 | The Secretary of State considers that there are reasonable grounds to suspect that Integrity Technology Group Incorporated... controlled and managed a botnet covert network consisting of over 260,000 compromised devices worldwide and supplied access to this network... |
+| Integrity Tech | China | 09/12/2025 | (same reason) |
+
+---
+
+### ChromaDB — `document_intelligence` chunks
+
+Chunk text examples returned by `HybridSearcher.search()`:
+
+**Tsingtao Annual Report** (English extracted from bilingual PDF, 512-token chunk):
+```
+ID: 青岛啤酒2024年年报-20250423.pdf_0
+Text: TSINGTAO BREWERY CO., LTD.
+(Stock Code 168)
+2024 ANNUAL REPORT
+TSINGTAO BREWERY CO., LTD.2024
+ANNUAL REPORT
+Contents
+Business Introduction of the Company 3
+Financial Highlights 6
+Chairman's Statement 11
+Report of the Directors 15
+...
+```
+
+**LEC About page** (cleaned HTML → CSV → chunked):
+```
+ID: londonexportcorp (1).csv_r1
+Text: In July 1953, there was a pivotal moment in history. Jack Perry Senior led a delegation
+to China to forge a historic trade partnership. This established London Export Corporation
+as the first British company to trade directly with New China after the Cold War.
+```
+
+---
+
+### ChromaDB chunk metadata format
+
+Every chunk includes:
+
+```python
+{
+    "source": "青岛啤酒2024年年报-20250423.pdf",
+    "file_type": ".pdf",
+    "chunk_index": 0,
+    "chunk_start": 0,
+    "chunk_end": 512,
+    "page_index": 258,       # for PDFs
+    "document_hash": "abc123...",
+}
+```
+
+Chunks from CSV files use `row_index` instead of `page_index`. Chunk IDs are `{source}_{index}` e.g. `青岛啤酒2024年年报-20250423.pdf_p258_0`.

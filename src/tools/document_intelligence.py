@@ -3,17 +3,18 @@ import time
 import json
 from typing import Optional
 from dataclasses import dataclass
+from dotenv import load_dotenv
 
 from src.retrieval.hybrid_searcher import HybridSearcher
 from src.tools.base import ToolResult
 
+load_dotenv(override=True)
 
 INDEX_DIR = "data/indexes"
 os.makedirs(INDEX_DIR, exist_ok=True)
 
 
-SYSTEM_CONTEXT = """
-You are a document intelligence assistant for London Export Corporation (LEC).
+SYSTEM_CONTEXT = """You are a document intelligence assistant for London Export Corporation (LEC).
 LEC has four subsidiaries:
 - LEC Beverages: UK importer and exclusive distributor of Tsingtao beer
 - LEC Robotics: Service automation and robotics solutions
@@ -24,15 +25,28 @@ Use ONLY the provided document chunks to answer the query. Do not make up inform
 If the documents do not contain enough information, say so explicitly.
 """
 
-MODEL_FOR_SYNTHESIS = "MiniMax-M2.7"
 
+def _synthesize_answer(query: str, context_text: str) -> tuple[str, int, int]:
+    from openai import OpenAI
+    api_key = os.getenv("MINIMAX_API_KEY", "")
+    client = OpenAI(api_key=api_key, base_url="https://api.minimax.io/v1").chat.completions
 
-@dataclass
-class SynthesisResult:
-    answer: str
-    sources: list[dict]
-    chunks_used: int
-    synthesis_tokens_used: int
+    messages = [
+        {"role": "system", "content": SYSTEM_CONTEXT},
+        {"role": "user", "content": f"Query: {query}\n\nDocument excerpts:\n{context_text}"},
+    ]
+
+    response = client.create(
+        model="MiniMax-M2.7",
+        messages=messages,
+        temperature=0.3,
+    )
+
+    answer = response.choices[0].message.content or ""
+    input_tokens = response.usage.prompt_tokens if hasattr(response, "usage") else 0
+    output_tokens = response.usage.completion_tokens if hasattr(response, "usage") else 0
+
+    return answer, input_tokens, output_tokens
 
 
 def document_intelligence(
@@ -63,16 +77,13 @@ def document_intelligence(
                 latency_ms=int((time.time() - start) * 1000),
             )
 
-        chunks_for_context = []
-        scores_for_context = []
-        for r in results:
-            chunks_for_context.append(r["text"])
-            scores_for_context.append(r["scores"])
-
         context_text = "\n\n---\n\n".join(
             f"[Source: {r['metadata'].get('source', 'unknown')} | Score: {r['scores']['final']:.3f}]\n{r['text'][:500]}"
             for r in results
         )
+
+        synthesis_answer, in_tokens, out_tokens = _synthesize_answer(query, context_text)
+        total_tokens = in_tokens + out_tokens
 
         return ToolResult(
             call_id="local",
@@ -85,11 +96,11 @@ def document_intelligence(
                     {"source": r["metadata"].get("source", ""), "chunk_id": r.get("chunk_id", "")}
                     for r in results
                 ],
-                "scores": scores_for_context if return_scores else {},
-                "answer": f"[Document search returned {len(results)} relevant chunks. Use these to synthesise an answer.]",
-                "chunks_for_context": context_text,
+                "scores": [r["scores"] for r in results] if return_scores else {},
+                "answer": synthesis_answer,
             },
             latency_ms=int((time.time() - start) * 1000),
+            tokens_used=total_tokens,
         )
 
     except Exception as e:

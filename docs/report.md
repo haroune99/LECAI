@@ -29,7 +29,7 @@ A production-grade agentic system for London Export Corporation, designed around
 
 **Failure mode 1: Planner output parsing is brittle.** The `parse_plan_steps` function uses regex to extract structured fields from the planner's plain-text output. If the model changes the format slightly — "Step 1:" vs "Step 1 —" — the parser silently fails and `plan_steps` comes back empty. Fix: JSON-mode prompting would make parsing robust.
 
-**Failure mode 2: Document Intelligence has no LLM synthesis.** The current implementation returns raw search chunks rather than synthesising an answer. This is a gap — it means the agent's answerer node has to work harder with raw chunks instead of a clean synthesis. Fix: add a MiniMax call in `document_intelligence` to synthesise from chunks.
+**Failure mode 2: Document Intelligence has no LLM synthesis.** The original implementation returned raw search chunks with a placeholder. Fix: `document_intelligence` now calls MiniMax-M2.7 to synthesise a clean answer from retrieved chunks, with temperature=0.3 for factual accuracy. The synthesis uses the same LLM at 0.3 temperature and includes token tracking via `tokens_used`.
 
 **Failure mode 3: No parallel execution in executor.** The plan mentions parallel dispatch via `asyncio.gather` — the current executor calls tools sequentially. This is slower than necessary for queries where two tools are independent. Fix: parse `PARALLEL_GROUPS` from the planner output and dispatch groups in parallel.
 

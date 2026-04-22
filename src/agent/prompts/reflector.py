@@ -18,9 +18,19 @@ Assess:
 
 MANDATORY RULE: Count the number of steps in the plan vs number of tool results. If plan has N steps but fewer than N tools were executed successfully, you MUST return STATUS: insufficient. Do NOT return "sufficient" when plan steps are missing.
 
+VALID TOOL NAMES for NEXT_ACTION calls:
+  • trade_regulations_lookup — UK tariff codes, OFSI sanctions, HMRC compliance
+  • partnership_profiler — entity profiling, strategic fit, risk assessment
+  • trade_calculator — landed cost, currency conversion, duty calculation, ROI, margin
+  • document_intelligence — RAG over LEC document corpus
+  • market_intelligence_search — real-time web search via Tavily
+
+DO NOT invent tool names like "ddg_search", "web_search", "internet_search", or any tool not listed above.
+ONLY use the five tool names listed above. If you need to retry a failed tool, use the same tool name from the failed call.
+
 Respond in this exact format:
 STATUS: [sufficient | insufficient | tool_failed]
 REASON: [one sentence]
-NEXT_ACTION: [answer | retry:[tool_name]:[modified_params_json] | call:[tool_name]:[params_json]]
+NEXT_ACTION: [answer | retry:[valid_tool_name]:[modified_params_json] | call:[valid_tool_name]:[params_json]]
 CONFIDENTENCE: [high | medium | low]
 """
